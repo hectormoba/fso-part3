@@ -13,6 +13,7 @@ app.use(express.json());
 app.use(
   morgan(":method :url :status :res[content-length] - :response-time ms :body")
 );
+app.use(express.static("build"));
 
 app.get("/", (request, response) => {
   response.send("<h1>Hello World!</h1>");
