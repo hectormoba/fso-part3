@@ -3,7 +3,6 @@ const generateId = require("./utils");
 const morgan = require("morgan");
 let persons = require("./data");
 const app = express();
-const port = 3001;
 
 morgan.token("body", function getBody(req) {
   if (req.method === "POST") return JSON.stringify(req.body);
@@ -80,4 +79,6 @@ app.delete("/api/persons/:id", (req, res) => {
   res.sendStatus(204);
 });
 
-app.listen(port);
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT);
