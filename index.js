@@ -21,7 +21,7 @@ app.get("/", (request, response) => {
 
 app.get("/info", (request, response) => {
   Person.find({}).then((result) => {
-    let = lengthOfData = result.length;
+    let lengthOfData = result.length;
     let message = "";
 
     if (lengthOfData !== 0) {
