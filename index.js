@@ -1,8 +1,8 @@
+require("dotenv").config();
 const express = require("express");
-const generateId = require("./utils");
 const morgan = require("morgan");
-let persons = require("./data");
 const app = express();
+const Person = require("./models/person");
 
 morgan.token("body", function getBody(req) {
   if (req.method === "POST") return JSON.stringify(req.body);
@@ -20,66 +20,98 @@ app.get("/", (request, response) => {
 });
 
 app.get("/info", (request, response) => {
-  let lengthOfData = persons.length;
-  let people = lengthOfData === 1 ? "person" : "people";
-  let data = `Phonebook has info for ${lengthOfData} ${people}`;
+  Person.find({}).then((result) => {
+    let = lengthOfData = result.length;
+    let message = "";
 
-  response.send(`<p>${data}</p><p>${Date()}</p>`);
+    if (lengthOfData !== 0) {
+      let people = lengthOfData === 1 ? "person" : "people";
+      message = `Phonebook has info for ${lengthOfData} ${people}`;
+    } else {
+      message = `Phonebook has no contacts yes `;
+    }
+    response.send(`<p>${message}</p><p>${Date()}</p>`);
+  });
 });
 
-app.get("/api/persons", (request, response) => {
-  response.json(persons);
+app.get("/api/persons", (req, res, next) => {
+  Person.find({})
+    .then((persons) => res.json(persons))
+    .catch((error) => next(error));
 });
 
-app.post("/api/persons", (req, res) => {
+app.post("/api/persons", (req, res, next) => {
   let body = req.body;
 
   if (!body.number) return res.status(400).send({ error: "number is missing" });
 
   if (!body.name) return res.status(400).send({ error: "name is missing" });
 
-  let isAdded = persons.some((person) => person.number === body.number);
+  const person = new Person({
+    number: body.number,
+    name: body.name,
+  });
 
-  if (isAdded)
-    return res
-      .status(400)
-      .send({ error: "this number is already in the phonebook" });
+  person
+    .save()
+    .then((savedPerson) => res.json(savedPerson))
+    .catch((error) => {
+      next(error);
+    });
+});
 
-  let dataToAdd = {
-    id: generateId(),
+app.get("/api/persons/:id", (req, res, next) => {
+  let id = req.params.id;
+  Person.findById(id)
+    .then((result) => res.json(result))
+    .catch((error) => next(error));
+});
+
+app.put("/api/persons/:id", (req, res, next) => {
+  let id = req.params.id;
+  let body = req.body;
+
+  let person = {
     name: body.name,
     number: body.number,
   };
 
-  persons = persons.concat(dataToAdd);
-  res.status(200).json(dataToAdd);
+  Person.findByIdAndUpdate(id, person, { new: true })
+    .then((result) => {
+      if (result) {
+        res.json(result);
+      }
+    })
+    .catch((error) => next(error));
 });
 
-app.get("/api/persons/:id", (req, res) => {
-  let id = Number(req.params.id);
-  let person = persons.filter((person) => person.id === id);
+app.delete("/api/persons/:id", (req, res, next) => {
+  let id = req.params.id;
 
-  if (person.length === 0) {
-    return res.sendStatus(404);
+  Person.findByIdAndDelete(id)
+    .then((result) => {
+      if (result) {
+        res.status(204).end();
+      }
+    })
+    .catch((error) => next(error));
+});
+
+const errorHandler = (error, req, res, next) => {
+  console.log(error.message);
+  if (error.name === "CastError") {
+    return res.status(400).send({ error: "malformed id" });
   }
 
-  res.json(person);
-});
-
-app.delete("/api/persons/:id", (req, res) => {
-  let id = Number(req.params.id);
-
-  let person = persons.filter((person) => person.id === id);
-
-  if (person.length === 0) {
-    return res.sendStatus(404);
+  if (error.name === "ValidationError") {
+    return res.status(400).send(error.message);
   }
 
-  persons = persons.filter((person) => person.id !== id);
+  next(error);
+};
 
-  res.sendStatus(204);
-});
+app.use(errorHandler);
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 
 app.listen(PORT);
